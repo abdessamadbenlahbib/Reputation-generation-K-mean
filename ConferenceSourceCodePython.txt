@@ -1,0 +1,67 @@
+
+# Loading Data (Reviews)
+------------------------
+
+example = ["" for x in range(0,100)]
+for i in range(0,100):
+    with open('C:\\Datasets\\MovieReviewsOne\\' + str(i+1) + '.txt', 'r') as myfile:
+        example[i] = myfile.read().replace('\n', '')
+        example[i] = re.sub('[0-9]','',example[i])
+		
+rating = [ 9 , 7 , 2 , 9 , 1 , 10 , 9 , 7 , 6 , 1 , 9 , 10 , 9 , 10 , 2 , 10 , 10 , 10 , 5 , 10 , 1 , 10 , 6 , 8 , 10 , 2 , 10 ,
+          2 , 5 , 9 , 8 , 7 , 10 , 5 , 3 , 10 , 7 , 4 , 8 , 10 , 9 , 8 , 10 , 10 , 10 , 2 , 9 , 7 , 9 , 9 , 10 , 10 , 3 , 10 ,
+          7 , 4 , 10 , 7 , 5 , 1 , 5 , 9 , 10 , 8 , 6 , 10 , 10 , 9 , 3 , 8 , 10 , 10 , 9 , 10 , 5 , 1 , 7 , 9 , 8 , 8 , 10 ,
+          10 , 10 , 10 , 10 , 10 , 9 , 10 , 10 , 10 , 10 , 8 , 10 , 10 , 10 , 10 , 8 , 10 , 10 , 9 ] # Rating attached to each review 
+
+for i in range(0,100):
+    example[i].encode('utf-8').strip()
+
+	
+# Applying LSA Model
+--------------------
+
+vectorizer = CountVectorizer(min_df = 1, stop_words='english', strip_accents='unicode')
+dtm = vectorizer.fit_transform(example)
+lsa = TruncatedSVD(2, algorithm = 'arpack')
+dtm_lsa = lsa.fit_transform(dtm)
+dtm_lsa = Normalizer(copy=False).fit_transform(dtm_lsa)	
+
+
+# Compute cosine similarity for all opinions after applying LSA 
+---------------------------------------------------------------
+
+similarity = np.asarray(numpy.asmatrix(dtm_lsa) * numpy.asmatrix(dtm_lsa).T)
+
+
+# Cluster reviews by using K-means algorithm
+---------------------------------------------
+
+number_clusters = 8
+from sklearn.cluster import KMeans
+kmeans = KMeans(n_clusters=number_clusters, random_state=1).fit(dtm_lsa) 
+labels = kmeans.labels_
+
+
+# Acquire the statistics of each cluster (the sum of the similarity in a cluster using cosine similarity metric, 
+# the sum of ratings in a cluster and the number of similar reviews in a cluster).
+----------------------------------------------------------------------------------------------------------------
+
+indexG= [[] for i in range(0,number_clusters)]
+clusterSize = np.zeros(number_clusters) # The number of similar reviews in a cluster.
+for i in range(0,len(labels)):
+    for j in range(0,number_clusters):
+        if labels[i] == j:
+            indexG[j].append(i)  
+    for i in range(0,number_clusters):
+        clusterSize[i] = len(indexG[i])
+simSum = np.zeros(number_clusters) # The sum of the similarity in a cluster.
+ratSum = np.zeros(number_clusters) # The sum of ratings in a cluster.
+for i in range(0,number_clusters):
+    tempRat = 0
+    tempSim = 0
+    for j in  range(0,len(indexG[i])):
+        tempRat = tempRat + rating[(indexG[i])[j]]
+        tempSim = tempSim + similarity[(indexG[i])[0]][(indexG[i])[j]]
+    ratSum[i] = tempRat
+    simSum[i]= tempSim
+
